@@ -61,3 +61,28 @@ Revision history for Webservice-InterMine
             and more sophisticated features are not required, a Simple service
             may be appealing
          * Added support for headers.
+0.9700: Wed 2 June 2011
+        * Changed result parsing logic - uses a JSON format internally for all 
+          non trivial parsing to ensure safety of field content and diagnostics 
+          of errors.
+        * Enabled lazy iteration of result sets by default. This improves responsiveness
+        for large datasets.
+        * Incorporated iteration into queries as a transparent feature.
+        * Added list services (creation, deletion, renaming, intersection, unions, differences, subtraction, appending)
+        * Added summary methods (show)
+        * Added template and query upload methods
+0.9701: Sat 4 June 2011
+        * Improved template parsing speed by only parsing what is requested
+        * Improved show printing format with more appropriate column sizes, and column guides.
+0.9702: Sat 4 June 2011
+        * Bug-fix release - subclass parsing was broken
+0.9702: Sun 5 June 2011
+        * Bug-fix release - Fixed handling of empty result sets - added test
+        for recently fixed bugs.
+0.9703: Sun 5 June 2011
+        * Bug-fix release - subclass parsing was broken
+0.9704: Sun 5 June 2011
+        * Added possible values service methods.
+0.9705: Wed Jun  8 19:34:43 BST 2011
+        * Avoid hitting url limits by posting where possible
+

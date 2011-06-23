@@ -69,7 +69,7 @@ The number of results to return. Leave undefined for "all" (default).
 
 The first result to return (starting at 0). The default is 0.
 
-=item * addheaders => 0/1/friendly/path
+=item * columnheaders => 0/1/friendly/path
 
 Whether to return the column headers at the top of TSV/CSV results. The default is
 false. There are two styles - friendly: "Gene > pathways > name" and 
@@ -109,7 +109,7 @@ sub results_iterator {
     $self->validate;
 
     my $row_format  = delete($args{as})   || "arrayrefs";
-    $row_format = 'tsv' if ($row_format eq 'string');
+    $row_format = 'tab' if ($row_format eq 'string' || $row_format eq 'tsv');
     my $json_format = delete($args{json}) || "perl";
     my $roles       = delete $args{with};
 
@@ -177,6 +177,13 @@ sub results {
     my $iter = $self->results_iterator(@_);
     return $iter->get_all();
 }
+
+=head2 get_count
+
+A convenience method that returns the number of result rows a query
+returns.
+
+=cut
 
 sub get_count {
     my $self = shift;

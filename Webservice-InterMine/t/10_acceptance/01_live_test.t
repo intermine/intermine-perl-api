@@ -17,7 +17,7 @@ my $do_live_tests = $ENV{RELEASE_TESTING};
 unless ($do_live_tests) {
     plan( skip_all => "Acceptance tests for release testing only" );
 } else {
-    plan( tests => 67 );
+    plan( tests => 69 );
 }
 
 my $module = 'Webservice::InterMine';
@@ -246,12 +246,19 @@ SHOWING: {
     open(my $fh, '>', \$buffer) or die "Horribly, $!";
     $q->show($fh);
     close $fh or die "$!";
-    my $expected = q|VIEW: [Employee.name, Employee.age, Employee.fullTime, Employee.address.address, Employee.department.name, Employee.department.company.name, Employee.department.manager.name], CONSTRAINTS: [[Employee.department.company LOOKUP "CompanyA" IN "NULL"],[Employee.age < "35"],], LOGIC: A and B, SORT_ORDER: Employee.name asc
-Employee.name           Employee.age            Employee.fullTime       Employee.address.addressEmployee.department.nameEmployee.department.company.nameEmployee.department.manager.name
-EmployeeA1              10                      true                    Employee Street, AVille DepartmentA1            CompanyA                EmployeeA1              
-EmployeeA2              20                      true                    Employee Street, AVille DepartmentA1            CompanyA                EmployeeA1              
-EmployeeA3              30                      false                   Employee Street, AVille DepartmentA1            CompanyA                EmployeeA1              
-|; 
+    my $expected = q!VIEW:.[Employee.name,.Employee.age,.Employee.fullTime,.Employee.address.address,.Employee.department.name,.Employee.department.company.name,.Employee.department.manager.name],.CONSTRAINTS:.[[Employee.department.company.LOOKUP."CompanyA".IN."NULL"],[Employee.age.<."35"],],.LOGIC:.A.and.B,.SORT_ORDER:.Employee.name.asc
+--------------+--------------+-------------------+--------------------------+--------------------------+----------------------------------+---------------------------------
+Employee.name.|.Employee.age.|.Employee.fullTime.|.Employee.address.address.|.Employee.department.name.|.Employee.department.company.name.|.Employee.department.manager.name
+--------------+--------------+-------------------+--------------------------+--------------------------+----------------------------------+---------------------------------
+EmployeeA1....|.10...........|.true..............|.Employee.Street,.AVille..|.DepartmentA1.............|.CompanyA.........................|.EmployeeA1......................
+EmployeeA2....|.20...........|.true..............|.Employee.Street,.AVille..|.DepartmentA1.............|.CompanyA.........................|.EmployeeA1......................
+EmployeeA3....|.30...........|.false.............|.Employee.Street,.AVille..|.DepartmentA1.............|.CompanyA.........................|.EmployeeA1......................
+!;
+    for ($buffer, $expected) {
+        s/\t/[TAB]/g;
+        s/ /./g;
+        s/\r/[CR]/g;
+    }
     is $buffer, $expected, "Can show a query";
 }
 
@@ -334,12 +341,14 @@ SHOWING_TEMPLATES: {
     open(my $fh, '>', \$buffer) or die "Horribly, $!";
     $t->show_with(valueA => 'companyB', to => $fh);
     close $fh or die "$!";
-    my $expected = q|View all the employees that work within a certain department of the specified company - employeesFromCompanyAndDepartment VIEW: [Employee.name, Employee.age], CONSTRAINTS: [[Employee.department.name = "Department*" (locked)],[Employee.department.company.name = "companyB" (locked)],], LOGIC: B and A, SORT_ORDER: Employee.name asc
-Employee.name...........Employee.age............
-EmployeeB1..............40......................
-EmployeeB2..............50......................
-EmployeeB3..............60......................
-|;
+    my $expected = q!employeesFromCompanyAndDepartment.-.View.all.the.employees.that.work.within.a.certain.department.of.the.specified.company
+--------------+-------------
+Employee.name.|.Employee.age
+--------------+-------------
+EmployeeB1....|.40..........
+EmployeeB2....|.50..........
+EmployeeB3....|.60..........
+!;
     $buffer =~ s/ /./g;
     $expected =~ s/ /./g;
     
@@ -371,4 +380,13 @@ $exp_res = [ ['EmployeeA1','DepartmentA1'] ];
 $res = $loaded->results;
 is_deeply($res, $exp_res, "Can get results for queries loaded from xml")
     or diag(explain $res);
+
+PARSING_EMPTY_RESULTS: {
+    my $q = $module->new_query(class => 'Manager');
+    $q->add_views('*');
+    $q->add_constraint('name', '=', 'Santa Claus');
+    my $res;
+    lives_ok {$res = $q->results} "It's ok to ask about Santa Claus";
+    is_deeply($res, [], "But there is no Santa Claus");
+}
 

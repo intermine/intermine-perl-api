@@ -5,7 +5,7 @@ margin: 0;
 margin-bottom: 25px;
 padding: 0;
 background-color: #ddd;
-background-image: url("../images/perldancer-bg.jpg"); 
+/* background-image: url("../images/im-large.jpg"); */
 background-repeat: no-repeat;
 background-position: top left;
 
@@ -22,6 +22,25 @@ a  {color: #03c}
 a[icon ^="out"] {
     padding-right: 20px;
     background: transparent url(../images/extlink.gif) no-repeat center right;
+}
+
+.ColVis {
+    float: left;
+}
+
+a[icon ^="delete"] {
+    color: #333;
+    margin-left: 10px;
+    padding-left: 20px;
+    background: transparent url(../images/delete.png) no-repeat center left;
+}
+
+#controls {
+    margin-bottom: 15px;
+}
+
+.ui-icon {
+    display: inline-block !important;
 }
 
 #gene-list-box div ul li a {
@@ -56,15 +75,24 @@ border: 3px solid #aaa;
 border-top: none;
 border-bottom: none;
 padding: 25px;
-max-width: 650px;
-margin-left: auto;
-margin-right: auto;
+padding-top: 5px;
 }
 
-#banner, div.footerbar {
-    max-width: 706px;
-    margin-left: auto;
-    margin-right: auto;
+.submenu {
+    padding-bottom: 10px;
+}
+
+.submenu a {
+    color: #333;
+    cursor: pointer;
+}
+
+.submenu a:hover {
+    text-decoration: underline;
+}
+
+#current-lists-box {
+    margin-top: 10px;
 }
 
 .summary {
@@ -118,6 +146,10 @@ td.key, td.value {
     font-family: "Droid Sans", Helvetica, "trebuchet MS", sans-serif;
 }
 
+td.key {
+    vertical-align: top;
+}
+
 td.value {
     font-family: "Droid Sans", Helvetica, "trebuchet MS", sans-serif;
 }
@@ -146,7 +178,7 @@ div.content-end {
     border-bottom: 3px solid #aaa;
 }
 
-#heading h1, #heading h3, p {
+#heading h1, #heading h3, p.overview {
     margin: 5px;
     font-family:  'Droid Serif', 'Judson', 'Times New Roman', serif;
     font-weight: 700;

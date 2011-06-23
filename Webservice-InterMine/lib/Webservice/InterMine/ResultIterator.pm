@@ -2,6 +2,7 @@ package Webservice::InterMine::ResultIterator;
 
 use strict;
 use Moose;
+use Carp qw/croak confess/;
 
 use InterMine::Model::Types qw(PathList);
 use Webservice::InterMine::Types qw(Uri HTTPCode NetHTTP RowFormat JsonFormat RequestFormat RowParser);
@@ -9,6 +10,7 @@ use MooseX::Types::Moose qw(Str HashRef Bool Num GlobRef Maybe);
 
 use HTTP::Status qw(status_message);
 use Encode;
+use URI::Escape;
 use overload (
     '<>' => 'next',
     fallback => 1,
@@ -21,9 +23,9 @@ sub BUILD {
     unless ($self->has_content) {
         warn "CONNECTING" if $ENV{DEBUG};
         $self->connect();
+        warn "SETTING HEADERS" if $ENV{DEBUG};
+        $self->set_headers();
     }
-    warn "SETTING HEADERS" if $ENV{DEBUG};
-    $self->set_headers();
 }
 
 =head1 NAME
@@ -136,73 +138,7 @@ has user_agent => (
 
 sub _build_user_agent {
     require Webservice::InterMine;
-    return "Webservice::InterMine-" . $Webservice::InterMine::VERSION;
-}
-
-
-=head1 ATTRIBUTES
-
-Other properties of the object. These attributes are derived from the 
-original construction arguments.
-
-=over 4
-
-=item * request_format: ro, RequestFormat
-
-The format that will be actually requested from the server.
-
-=cut
-
-has request_format => (
-    is => 'ro',
-    isa => RequestFormat,
-    lazy_build => 1,
-    coerce => 1,
-);
-
-sub _build_request_format {
-    my $self = shift;
-    my $row_format = $self->row_format;;
-    if ($row_format eq any(@SIMPLE_FORMATS, @JSON_FORMATS)) {
-        return $row_format;
-    } else {
-        return "jsonrows";
-    }
-}
-
-=item * row_parser: ro, Webservice::InterMine::Parser
-
-The parser to return a formatted row of data.
-
-=cut
-
-has row_parser => (
-    is => 'ro',
-    isa => RowParser,
-    lazy_build => 1,
-);
-
-sub _build_row_parser {
-    my $self        = shift;
-    my $row_format  = $self->row_format;
-    my $view        = $self->view_list;
-    my $json_format = $self->json_format;;
-    if ($row_format eq any(@SIMPLE_FORMATS)) {
-        require Webservice::InterMine::Parser::FlatFile;
-        return Webservice::InterMine::Parser::FlatFile->new();
-    } elsif ($row_format eq "arrayrefs") {
-        require Webservice::InterMine::Parser::JSON::ArrayRefs;
-        return Webservice::InterMine::Parser::JSON::ArrayRefs->new();
-    } elsif ($row_format eq "hashrefs") {
-        require Webservice::InterMine::Parser::JSON::HashRefs;
-        return Webservice::InterMine::Parser::JSON::HashRefs->new(view => $view);
-    } elsif ($row_format eq any(@JSON_FORMATS)) {
-        require Webservice::InterMine::Parser::JSON;
-        return Webservice::InterMine::Parser::JSON->new(
-            json_format => $json_format, model => $self->model);
-    } else {
-        confess "Unknown row format '" . $row_format . "'"
-    }
+    return "Webservice::InterMine-" . $Webservice::InterMine::VERSION . "/Perl client library";
 }
 
 =item * connection: ro, Net::HTTP
@@ -286,7 +222,7 @@ has headers => (
           if ( $te and $te eq 'chunked' );
         my $ct = $self->get_content_type;
         $self->_is_binary(1)
-            if ($ct =~ /octet-stream/);
+            if ($ct and $ct =~ /octet-stream/);
     },
 );
 
@@ -365,14 +301,15 @@ sub set_headers {
         if ( $line =~ /^HTTP/ ) {
             chomp( ( $version, $code, $phrase ) =
                   split( /\s/, $line, 3 ) );
-        } else {
+        } elsif ($line =~ /:/) {
             chomp( ( $key, $value ) = split( /:\s*/, $line, 2 ) );
-        }
+        } 
         $headers{$key} = $value if $key;
         warn "HEADER $key = $value" if $ENV{DEBUG};
         $self->_set_error_code($code)      if $code;
         $self->_set_error_message($phrase) if $phrase;
     }
+    warn "FINISHED READING HEADERS" if $ENV{DEBUG};
     $self->_set_headers( \%headers );
     if (HTTP::Status::is_error( $self->error_code )) {
         $self->_find_real_error_message();
@@ -442,7 +379,14 @@ sub next {
     until ($self->row_parser->header_is_parsed) {
         $self->row_parser->parse_header($self->read_line);
     }
-    return $self->row_parser->parse_line($self->read_line);
+    my $next = $self->row_parser->parse_line($self->read_line);
+    unless (defined $next) {
+        if (my $footer = $self->read_line) {
+            warn "PARSING FOOTER" if $ENV{DEBUG};
+            do {$self->row_parser->parse_line($footer)} while ($footer = $self->read_line);
+        }
+    }
+    return $next;
 }
 
 =head2 get_all
@@ -459,6 +403,7 @@ sub get_all {
     while (defined(my $line = $self->next)) {
         push @rows, $line;
     }
+    croak "Incomplete result set received" unless $self->row_parser->is_complete;
     if (wantarray) {
         return @rows;
     } else {
@@ -476,7 +421,6 @@ in the correct encoding, with the new line characters stripped.
 =cut
 
 sub read_line {
-    warn "READING LINE" if $ENV{DEBUG};
     my $self = shift;
     my $line;
     if ( $self->has_content ) {
@@ -517,7 +461,7 @@ sub read_line {
     }
 
     if ( defined $line ) {
-        $line =~ s/$CRLF//;
+        $line = trim_and_decode($line);
     }
     warn "RETURNING LINE: $line\n" if $ENV{DEBUG};
 
@@ -547,11 +491,20 @@ sub connect {
     
     my $connection = Net::HTTP->new( Host => $uri->host )
         or confess "Could not connect to host $@";
-    my %headers = ('User-Agent' => $self->user_agent);
+    my %headers = (
+        'User-Agent' => $self->user_agent,
+#        'Content-Type' => 'application/x-www-form-urlencoded; charset=utf-8',
+    );
     if (my $auth = $self->authorization) {
         $headers{Authorization} = $auth;
     }
-    warn "GETTING $uri" if $ENV{DEBUG};
+
+#    my @pairs;
+#    while (my @pair = each %$query_form) {
+#        push @pairs, join('=', map {uri_escape($_)} @pair);
+#    }
+#    my $content = join('&', @pairs);
+    warn "getting $uri\n" if $ENV{DEBUG};
     $connection->write_request(GET => "$uri", %headers);
     $self->set_connection($connection);
 }

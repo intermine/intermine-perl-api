@@ -11,7 +11,7 @@ sub view_size {};
 sub add_view {};
 sub add_views {};
 sub results_iterator {};
-sub table_format {};
+sub results {};
 
 has query => (
     is => 'ro',
@@ -20,8 +20,7 @@ has query => (
     builder => 'build_query',
     handles => [qw/
         views view_size add_view add_views 
-        results_iterator
-        table_format
+        results_iterator results
     /],
 );
 

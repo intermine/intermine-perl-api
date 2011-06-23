@@ -56,6 +56,7 @@ under the same terms as Perl itself.
 
 use DateTime::Format::ISO8601;
 use Carp qw(confess);
+require overload;
 
 use MooseX::Types -declare => [
     qw(
@@ -94,6 +95,7 @@ use MooseX::Types -declare => [
         RowFormat
         JsonFormat
         RequestFormat
+        TSVFormat
 
         File
         NotAllLowerCase
@@ -103,10 +105,18 @@ use MooseX::Types -declare => [
         UserAgent
 
         ResultIterator
+
+        SetObject
+
+        True False TruthValue Truthy 
+        
+        DomNode
     )
 ];
 
-use MooseX::Types::Moose qw/Str ArrayRef HashRef Undef Maybe Int/;
+use MooseX::Types::Moose qw/
+   Defined  Bool Object Str ArrayRef HashRef Undef Maybe Int/;
+
 
 # UTILITY
 
@@ -208,6 +218,7 @@ class_type NetHTTP, { class => 'Net::HTTP', };
 subtype HTTPCode, as Str, where { /^\d{3}$/ };
 
 coerce Uri, from Str, via {
+    require URI;
     my $prefix = (m!^(?:ht|f)tp!) ? '' : 'http://';
     URI->new( $prefix . $_ );
 };
@@ -329,15 +340,17 @@ coerce SavedQueryFactory, from Str, via {
 # RESULT ITERATION
 
 role_type RowParser, {role => "Webservice::InterMine::Parser"};
-enum RowFormat, ['arrayrefs', 'hashrefs', 'tab', 'tsv', 'csv', 'jsonobjects', 'jsonrows', 'count'];
+enum RowFormat, ['arrayrefs', 'hashrefs', 'xml', 'tab', 'tsv', 'csv', 'jsonobjects', 'jsonrows', 'jsondatatable', 'count'];
 enum JsonFormat, ['perl', 'inflate', 'instantiate'];
-enum RequestFormat, ['tab', 'tsv', 'csv', 'count', 'jsonobjects', 'jsonrows', 'xml'];
+enum RequestFormat, ['tab', 'csv', 'count', 'jsonobjects', 'jsonrows', 'xml', 'jsondatatable'];
+subtype TSVFormat, as Str, where {/^tsv$/i};
 
 class_type ResultIterator, {class => 'Webservice::InterMine::ResultIterator'};
 
 coerce RowFormat, from NotAllLowerCase, via { lc($_) };
 coerce JsonFormat, from NotAllLowerCase, via { lc($_) };
 coerce RequestFormat, from NotAllLowerCase, via { lc($_) };
+coerce RequestFormat, from TSVFormat, via { 'tab' };
 
 # DATES
 
@@ -348,5 +361,16 @@ coerce Date, from Str, via {DateTime::Format::ISO8601->parse_datetime($_)};
 
 class_type UserAgent, {class => 'LWP::UserAgent'};
 
+class_type SetObject, {class => 'Set::Object'};
+
+coerce SetObject, from ArrayRef, via {require Set::Object; return Set::Object->new(@$_)};
+
+subtype True, as Defined, where {$_ == 1 || $_ eq "1"};
+subtype False, as Defined, where {$_ == 0 || $_ eq "0"};
+subtype TruthValue, as True | False;
+subtype Truthy, as Object, where {overload::Method($_, 'bool')};
+coerce TruthValue, from Truthy, via {$_ ? 1 : 0};
+
+class_type DomNode, { class => 'XML::DOM::Node' };
 
 1;

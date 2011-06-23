@@ -1,18 +1,20 @@
-<div id="list-addition-box" style="float: right">
-    <form id="list-addition-form">
     <button id="listadder" value="Add">Add to</button>
-    <select id="addto">
+<span id="list-addition-box">
+    <span id="list-addition-form">
+    <select id="addto" style="width:75%">
     <option value="create-new-list">New List</option>
     [% FOREACH list IN lists %]
         [% list_name = list.name %]
         <option value="[% list.name %]"
-            [% IF contained_in.$list_name %] disabled [% END %] >
+            [% IF contained_in.$list_name or not list.is_authorized %] 
+                disabled 
+            [% END %] >
             [% list.name %] ([% list.size %] [% pluraliser(list.type) %]) 
         </option>
     [% END %]
     </select>
-    </form>
-</div>
+    </span>
+</span>
 
 [% INCLUDE list_creation_popup.tt %]
 
@@ -34,7 +36,7 @@ jQuery(function() {
                             description: $('#newlistdesc').val(),
                             type: "[% obj.class %]"
                         };
-                        $.post("[% proxy.uri_for('/create_new_list') %]", data, handleResults, "json");
+                        $.post("[% proxy.uri_for('/create_new_list') %]", data, handleListResults, "json");
                         $(this).dialog('close');
                     },
                     Cancel: function() {$(this).dialog('close');}

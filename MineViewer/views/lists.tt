@@ -1,66 +1,22 @@
 [% INCLUDE banner.tt %]
+<div style="display:none" title="Confirm Deletion" id="confirm-del">
+    <p>Do you really want to delete <span id="delendum"></span></p>
+</div>
+
 <div id="content">
-    [% IF lists.size == 1 %]
-        [% list = lists.0 %]
-        <h2>[% list.name %] ([% list.size %] [% list.type %]s) </h2>
-    [% ELSE %]
-        <select id="lists">
-        [% FOREACH list IN lists %]
-            <option value="[% list.name %]">[% list.name %] ([% list.size %] [% pluraliser(list.type) %]) </option>
-        [% END %]
-        </select>
-    [% END %]
-    <div id="list-item-box">
-    <ul id="list-items">
-        [% FOREACH item IN items %]
-            [% itemname = '' %]
-            [% FOREACH key IN class_keys %]
-                [% resolved = item %]
-                [% keyparts = key.split('\.') %]
-                [% FOREACH kp IN keyparts %]
-                    [% resolved = resolved.$kp %]
-                [% END %]
-                [% itemname = resolved %]
-                [% LAST IF itemname %]
-            [% END %]
-                <li>
-        <a href="[% proxy.uri_for('/' _ item.class _ '/id/' _ item.objectId) %]">[% itemname %]</a>
-                </li>
-        [% END %]
-    </ul>
+    <div class="submenu" id="list-submenu">
+        <a onclick="jQuery('#lists-display').show();jQuery('#lists-manage').hide();">View Lists</a>
+        <span>|</span>
+        <a onclick="jQuery('#lists-display').hide();jQuery('#lists-manage').slideDown('fast', function() {jQuery('#list-operand-selector').multiselect('open')});">Manage Lists</a>
+    </div>
+    <div id="lists-display">
+        [% INCLUDE lists_display.tt %]
+    </div>
+    <div id="lists-manage" style="display:none">
+        [% INCLUDE lists_manage.tt %]
     </div>
 </div>
 
 [% INCLUDE export.tt %]
-
-<script type="text/javascript">
-jQuery(function() {
-    var colWidth = [% settings.list_column_width %];
-    var listname = jQuery('#lists option:selected').val();
-    jQuery('#list-item-box').load("[% proxy.uri_for('/list/') %]" + escape(listname) + ' #list-items',
-        null, function() {
-        jQuery('#list-items').makeacolumnlists({
-            cols: colWidth, colWidth: 0, 
-            equalHeight: true, startN: 1
-            })
-        });
-
-    jQuery('#lists').change(function() {
-        var listname = jQuery('#lists option:selected').val();
-        jQuery('#list-item-box').load("[% proxy.uri_for('/list/') %]" + escape(listname) + ' #list-items',
-            null, function() {
-            jQuery('#list-items').makeacolumnlists({
-                cols: colWidth, colWidth: 0, 
-                equalHeight: true, startN: 1
-                })
-            });
-        jQuery('#export ul li a').each(function(index, element) {
-            var type = element.id.split('-')[0];
-            jQuery(this).attr('href', "[% proxy.uri_for('/list/') %]" + listname + "." + type);
-        });
-    });
-});
-</script>
-        
 
 
